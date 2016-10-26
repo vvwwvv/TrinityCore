@@ -18,6 +18,8 @@
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "CreatureGroups.h"
+#include "SpellScript.h"
+#include "SpellAuraEffects.h"
 #include "stonecore.h"
 
 // TO-DO:
@@ -33,7 +35,7 @@ enum Spells
     // Corborus boss
     SPELL_DAMPENING_WAVE            = 82415,
     SPELL_CRYSTAL_BARRAGE           = 86881, // 81638 triggers 81637
-//  SPELL_CRYSTAL_BARRAGE_SHARD     = 92012, // heroic only, summons Crystal Shard (TO-DO!)
+    SPELL_CRYSTAL_BARRAGE_SHARD     = 92012, // heroic only, summons Crystal Shard (TO-DO!)
     SPELL_CLEAR_ALL_DEBUFFS         = 34098,
     SPELL_SUBMERGE                  = 81629,
     SPELL_TRASHING_CHARGE_TELEPORT  = 81839, // triggers 81864
@@ -46,6 +48,11 @@ enum Spells
     // Rock Borer npc (43917)
     SPELL_ROCK_BORER_EMERGE         = 82185,
     SPELL_ROCK_BORE                 = 80028,
+
+    // Crystal Shard
+    SPELL_CRYSTAL_SHARDS_AURA       = 80895,
+    SPELL_CRYSTAL_SHARDS_TARGET     = 80912,
+    SPELL_CRYSTAL_SHARDS_DAMAGE     = 80913
 };
 
 enum NPCs
@@ -316,8 +323,94 @@ class npc_rock_borer : public CreatureScript
         }
 };
 
+class spell_crystal_barrage : public SpellScriptLoader
+{
+public:
+    spell_crystal_barrage() : SpellScriptLoader("spell_crystal_barrage") { }
+
+    class spell_crystal_barrageAuraScript : public AuraScript
+    {
+        PrepareAuraScript(spell_crystal_barrageAuraScript);
+
+        void HandleTriggerSpell(AuraEffect const* aurEff)
+        {
+            if (Unit * caster = GetCaster())
+            {
+                if (caster->GetMap()->IsHeroic() && !(aurEff->GetTickNumber() % 3))
+                    caster->CastSpell(caster, SPELL_CRYSTAL_BARRAGE_SHARD, true);
+            }
+        }
+
+        void Register()
+        {
+            OnEffectPeriodic += AuraEffectPeriodicFn(spell_crystal_barrageAuraScript::HandleTriggerSpell, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+        }
+    };
+
+    AuraScript* GetAuraScript() const
+    {
+        return new spell_crystal_barrageAuraScript();
+    }
+};
+
+class npc_crystal_shard : public CreatureScript
+{
+public:
+    npc_crystal_shard() : CreatureScript("npc_crystal_shard") {}
+
+    struct npc_crystal_shardAI : public BossAI
+    {
+        npc_crystal_shardAI(Creature * creature) : BossAI(creature, DATA_CORBORUS)
+        {
+            me->SetReactState(REACT_PASSIVE);
+        }
+
+        void Reset()
+        {
+            spawnTimer = 5000;
+            spawned = false;
+        }
+
+        void SpellHitTarget(Unit * /*target*/, const SpellInfo * spell)
+        {
+            if (spell->Id == SPELL_CRYSTAL_SHARDS_TARGET)
+            {
+                DoCast(SPELL_CRYSTAL_SHARDS_DAMAGE);
+                me->DespawnOrUnsummon(250);
+            }
+        }
+
+        void UpdateAI(uint32 diff)
+        {
+            if (!spawned)
+            {
+                if (spawnTimer <= diff)
+                {
+                    spawned = true;
+                    me->SetReactState(REACT_AGGRESSIVE);
+                    DoCast(SPELL_CRYSTAL_SHARDS_AURA);
+                    DoZoneInCombat();
+                }
+                else spawnTimer -= diff;
+            }
+        }
+
+    private:
+        uint32 spawnTimer;
+        bool spawned;
+    };
+
+
+    CreatureAI * GetAI(Creature * creature) const
+    {
+        return new npc_crystal_shardAI(creature);
+    }
+};
+
 void AddSC_boss_corborus()
 {
     new boss_corborus();
     new npc_rock_borer();
+    new spell_crystal_barrage();
+    new npc_crystal_shard();
 }

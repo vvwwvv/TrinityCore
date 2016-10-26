@@ -1,0 +1,10 @@
+
+The Stonecore
+
+	- Corborus - 100% Working
+		- Crystal barrage - 100% Working
+		- Crystal Shard - 100% Working
+		- Dampening Wave - 100% Working
+		- Burrow - 100% Working
+		- Thrashing Charge - 100% Working
+		- Rock Bore - 100% Working
