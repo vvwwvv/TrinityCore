@@ -37,8 +37,7 @@ Firelands
 			
 			- Wrath of Ragnaros - 100%
 			- Hand of Ragnaros - 100%
-			- Magma Trap - 90%
-				- Does not explode
+			- Magma Trap - 100%
 			- Magma Blast - 100%
 		First intermission: 90% (Normal mode only)
 			- Son of flame 100% (doesn't spawn on hc)

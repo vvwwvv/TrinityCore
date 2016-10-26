@@ -132,15 +132,14 @@ public:
 
 	struct boss_shannoxAI : public BossAI
 	{
-		boss_shannoxAI(Creature* creature) : BossAI(creature, DATA_SHANNOX) { }
+		boss_shannoxAI(Creature* creature) : BossAI(creature, DATA_SHANNOX) { Initialize(); }
 
-
-
-		void JustSummoned(Creature* summon) override
+		void Initialize()
 		{
-		//	me->LoadPath(4599104);
-		//	me->Yell("Yes... I smell them too, Riplimb. Outsiders encroach on the Firelord's private grounds. Find their trail, find them for me, that I may dispense punishment!", LANG_UNIVERSAL);
-			// me->PlayDistantSound(24584);
+			me->LoadPath(4599104);
+			me->Yell("Yes... I smell them too, Riplimb. Outsiders encroach on the Firelord's private grounds. Find their trail, find them for me, that I may dispense punishment!", LANG_UNIVERSAL);
+				
+			me->PlayDistanceSound(24584);
 		}
 
 		void Reset() override
@@ -414,9 +413,9 @@ public:
 
 	struct npc_riplimbAI : public CreatureAI
 	{
-		npc_riplimbAI(Creature* creature) : CreatureAI(creature) { }
+		npc_riplimbAI(Creature* creature) : CreatureAI(creature) { Initialize();  }
 
-		void JustSummoned(Creature* summon) override
+		void Initialize()
 		{
 			if(Creature* shannox = me->FindNearestCreature(NPC_SHANNOX, 500.0f, true))
 
@@ -618,9 +617,9 @@ public:
 
 	struct npc_ragefaceAI : public CreatureAI
 	{
-		npc_ragefaceAI(Creature* creature) : CreatureAI(creature) { }
+		npc_ragefaceAI(Creature* creature) : CreatureAI(creature) { Initialize(); }
 
-		void JustSummoned(Creature* summon) override
+		void Initialize()
 		{
 			if (Creature* shannox = me->FindNearestCreature(NPC_SHANNOX, 500.0f, true))
 
