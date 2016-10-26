@@ -1398,6 +1398,8 @@ public:
 			DoCastAOE(SPELL_HEART_OF_RAGNAROS_A, true);
 			DoCastAOE(SPELL_HEART_OF_RAGNAROS_H, true);
 			DoCastAOE(SPELL_AWARD_REPUTATION, true);
+			if (!IsHeroic())
+				me->DespawnOrUnsummon();
 		}
 
 		void EnterEvadeMode(EvadeReason why) override
@@ -1811,7 +1813,6 @@ public:
 					me->SummonCreatureGroup(CG_PLAYER_HELPERS);
 				else
 				{
-					_JustDied();
 					Talk(SAY_RAGNAROS_NORMAL_SUBMERGE);
 					me->RemoveAllAurasOnDeath();
 					me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
@@ -1825,11 +1826,14 @@ public:
 					DoCastAOE(SPELL_RAGNAROS_KILL_CREDIT, true);
 					DoCastAOE(SPELL_AWARD_REPUTATION, true);
 					me->CastSpell(me, SPELL_DEATH, true);
-					DoCastAOE(SPELL_SUMMON_CHEST, true);
+					//DoCastAOE(SPELL_SUMMON_CHEST, true); Position needs to be fixed.
 					DoCastAOE(SPELL_ACHIEVEMENT_CHECK, true);
 					DoCastAOE(SPELL_HEART_OF_RAGNAROS_A, true);
 					DoCastAOE(SPELL_HEART_OF_RAGNAROS_H, true);
 					me->m_Events.AddEvent(new DelayedDisappearAndDieEvent(me), me->m_Events.CalculateTime(3.6 * IN_MILLISECONDS));
+					//me->DespawnOrUnsummon();
+
+					_JustDied();
 				}
 				break;
 			case PHASE_FOUR:
@@ -2551,9 +2555,8 @@ public:
 		{
 			if (spell->Id != SPELL_MAGMA_TRAP_TARGET_SEARCH)
 				return;
-
-			me->Yell("Explosion disabled to due bug in core!", LANG_UNIVERSAL);
-			//DoCastAOE(SPELL_MAGMA_TRAP_ERUPTION, true);
+				
+			DoCast(SPELL_MAGMA_TRAP_ERUPTION);
 			me->RemoveAurasDueToSpell(SPELL_MAGMA_TRAP_VISUAL);
 			me->RemoveAurasDueToSpell(SPELL_MAGMA_TRAP_PLAYER_TRIGGER);
 		}
