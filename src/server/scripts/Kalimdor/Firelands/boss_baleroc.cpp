@@ -630,20 +630,6 @@ class spell_shards_of_torment : public SpellScriptLoader
         }
 };
 
-class PlayerCheck
-{
-    public:
-        bool operator()(WorldObject* object) const
-        {
-            if (object->GetTypeId() != TYPEID_PLAYER)
-                if (!object->ToPlayer()->IsAlive())
-                    if (object->ToPlayer()->IsGameMaster())
-                        return true;
-
-            return false;
-        }
-};
-
 class spell_baleroc_torment : public SpellScriptLoader
 {
     public:
@@ -660,7 +646,6 @@ class spell_baleroc_torment : public SpellScriptLoader
 
             void FilterTargets(std::list<WorldObject*>& targets)
             {
-                targets.remove_if(PlayerCheck());
 
                 if (targets.empty())
                 {
