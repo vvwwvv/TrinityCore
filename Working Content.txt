@@ -8,3 +8,85 @@ The Stonecore
 		- Burrow - 100% Working
 		- Thrashing Charge - 100% Working
 		- Rock Bore - 100% Working
+
+
+Firelands
+
+	- Shannox - 50% Working
+		- Immolation Trap - 100% Working
+		- Crystal Prison Trap - 50% Working (Needs to spawn Crystal Prison)
+		- Arcing Slash - 90% Working (Damage needs to be fixed)
+		- Hurl Spear - 0% Working
+		- Frenzy - 100% Working
+		- Magma Rupture - 0% Working
+		- Frenzied Devotion - 100% working
+		- Riplimb - 100% Working(except hurl spear)
+			- Limb Rip 100% Working 
+				- Jagged Tear 100% Working
+			- Frenzied Devotion - 100% Working
+			
+		- Rageface - 50% Working
+			- Face Rage 0% Working
+			- Frenzied Devotion - 100% working
+		
+		
+	- Ragnaros - 50% Working 
+		Phase 1: 
+			- Sulfuras Smash - 90%
+				- Lava Waves it creates needs to knockback the player (Knocks foward)?
+			
+			- Wrath of Ragnaros - 100%
+			- Hand of Ragnaros - 100%
+			- Magma Trap - 90%
+				- Does not explode
+			- Magma Blast - 100%
+		First intermission: 90% (Normal mode only)
+			- Son of flame 100% (doesn't spawn on hc)
+			- Splitting Blow - 100% 
+			- Lava Bolt - 100%
+			-Ragnaros has visual bug
+			
+		Phase 2: 60%
+			- Sulf smash - 90%
+			- Engulfing FLame - 100%
+			- Molten Seed - 0%
+			- Magma Blast - 100%
+			- World in Flames - 0%
+		Second intermission: 80% (Normal mode only)
+			
+			- Son of flame 100% (doesn't spawn on hc)
+			- Splitting Blow - 100% 
+			- Lava Bolt - 100%
+			- Lava Scion - 80%
+				-Blazing Heat Debuff doesn't leave flames on ground
+			-Ragnaros has visual bug
+		Phase 3:  - 50%
+			- Sulf Smash 90%
+			- Engulfing FLame - 100%
+			- World in flames - 0%
+			- Summon Living Meteor - 0%
+			- Magma blast 100%
+			
+		phase 4: (Hc only) 50%
+			- Superheated 100%
+			- Empower SUlfuras - 100%
+			- Dreadflame - 50%
+				spawning needs to be fixed on it
+			- Cenarious - 50%
+				Movement is bad
+				Casts breath of frost - 100%
+				
+			- Arch Druid - 50%
+				Movement is bad
+				Casts the roots - 100%
+				
+			-Malfurion Stormrage - 50%
+				Movement is bad
+				Casts cloudburst - 100%
+				
+				
+		Ragnar-O's Achievment needs fix (No meteors)
+		Legendary quest line (Heart of ragnaros) needs to be fixed
+		Chest position needs to be fixed.
+		Boss Damage and attack speed needs to be fixed 
+		
