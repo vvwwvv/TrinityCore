@@ -1520,6 +1520,46 @@ public:
         return new spell_dk_death_grip_initial_SpellScript();
     }
 };
+// Festering strike 85948 
+class spell_dk_festering : public SpellScriptLoader 
+{ 
+public: spell_dk_festering() : SpellScriptLoader("spell_dk_festering") { }
+class spell_dk_festering_SpellScript : public SpellScript
+{
+	PrepareSpellScript(spell_dk_festering_SpellScript);
+
+	void OnHitTarget(SpellEffIndex /*effIndex*/)
+	{
+		Unit* caster = GetCaster();
+		Unit* target = GetHitUnit();
+		Aura* aura = NULL;
+		int32 newDuration = GetSpellInfo()->Effects[EFFECT_2].BasePoints * 1000;
+		// Increase Chains of Ice
+		if (aura = target->GetAura(45524, caster->GetGUID()))
+			aura->SetDuration(std::min(newDuration + aura->GetDuration(), aura->GetMaxDuration()), false);
+		// Increase Blood plague
+		if (aura = target->GetAura(55078, caster->GetGUID()))
+			aura->SetDuration(std::min(newDuration + aura->GetDuration(), aura->GetMaxDuration()), false);
+		// Increase Frost Fever
+		if (aura = target->GetAura(55095, caster->GetGUID()))
+			aura->SetDuration(std::min(newDuration + aura->GetDuration(), aura->GetMaxDuration()), false);
+		// Increase Ebon Plague
+		if (aura = target->GetAura(65142, caster->GetGUID()))
+			aura->SetDuration(std::min(newDuration + aura->GetDuration(), aura->GetMaxDuration()), false);
+	}
+
+	void Register()
+	{
+		OnEffectHitTarget += SpellEffectFn(spell_dk_festering_SpellScript::OnHitTarget, EFFECT_2, SPELL_EFFECT_SCRIPT_EFFECT);
+	}
+};
+
+SpellScript* GetSpellScript() const
+{
+	return new spell_dk_festering_SpellScript;
+}
+};
+
 
 void AddSC_deathknight_spell_scripts()
 {
@@ -1551,4 +1591,5 @@ void AddSC_deathknight_spell_scripts()
     new spell_dk_vampiric_blood();
     new spell_dk_will_of_the_necropolis();
     new spell_dk_death_grip_initial();
+	new spell_dk_festering();
 }
