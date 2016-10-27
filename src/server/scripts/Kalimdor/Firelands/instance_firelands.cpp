@@ -18,7 +18,7 @@
 #include "ScriptMgr.h"
 #include "InstanceScript.h"
 #include "firelands.h"
-#include <minwindef.h>
+//#include <minwindef.h>
 
 BossBoundaryData const bounderies =
 {
@@ -140,12 +140,12 @@ public:
 			switch (data)
 			{
 			case DATA_RAGNAROS_EMERGED:
-				RagnarosEmerged = value == TRUE;
+				RagnarosEmerged = value == true;
 				if (RagnarosEmerged && !GetCreature(NPC_RAGNAROS))
 					instance->SummonCreature(NPC_RAGNAROS, { 1075.201f, -57.84896f, 55.42427f, 3.159046f });
 				break;
 			case DATA_RAGNAROS_FIRST_EMERGE:
-				RagnarosFirstEmerge = value == TRUE;
+				RagnarosFirstEmerge = value == true;
 				break;
 			}
 		}
@@ -155,9 +155,9 @@ public:
 			switch (data)
 			{
 			case DATA_RAGNAROS_EMERGED:
-				return RagnarosEmerged ? TRUE : FALSE;
+				return RagnarosEmerged ? true : false;
 			case DATA_RAGNAROS_FIRST_EMERGE:
-				return RagnarosFirstEmerge ? TRUE : FALSE;
+				return RagnarosFirstEmerge ? true : false;
 			}
 
 			return 0;
