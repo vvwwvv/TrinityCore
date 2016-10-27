@@ -1341,6 +1341,10 @@ public:
 				instance->SetData(DATA_RAGNAROS_FIRST_EMERGE, 1);
 				events.ScheduleEvent(EVENT_INTRO, 6 * IN_MILLISECONDS, EVENT_GROUP_NONE);
 			}
+			if (GameObject* go = me->FindNearestGameObject(209073, 1000.0f))		
+			{		
+				go->SetGoState(GO_STATE_ACTIVE);		
+			}
 		}
 
 		void ResetVariables()
@@ -1381,6 +1385,10 @@ public:
 
 			events.CancelEvent(EVENT_INTRO);
 			PreparePhase(PHASE_ONE);
+			
+					
+			if (GameObject* go = me->FindNearestGameObject(209073, 1000.0f))		
+				go->SetGoState(GO_STATE_READY);
 		}
 
 		void JustDied(Unit* killer) override
@@ -1392,7 +1400,9 @@ public:
 				instance->SetBossState(DATA_RAGNAROS, DONE);
 				instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
 			}
-
+			if (GameObject* go = me->FindNearestGameObject(209073, 1000.0f))		
+				go->SetGoState(GO_STATE_ACTIVE);
+			
 			Talk(SAY_RAGNAROS_HEROIC_DEATH);
 			CombatCleanup(false);
 			DoCastAOE(SPELL_ACHIEVEMENT_CHECK, true);
@@ -1829,12 +1839,12 @@ public:
 					DoCastAOE(SPELL_RAGNAROS_KILL_CREDIT, true);
 					DoCastAOE(SPELL_AWARD_REPUTATION, true);
 					me->CastSpell(me, SPELL_DEATH, true);
-					//DoCastAOE(SPELL_SUMMON_CHEST, true); Position needs to be fixed.
+					DoCastAOE(SPELL_SUMMON_CHEST, true); //Position needs to be fixed.
 					DoCastAOE(SPELL_ACHIEVEMENT_CHECK, true);
 					DoCastAOE(SPELL_HEART_OF_RAGNAROS_A, true);
 					DoCastAOE(SPELL_HEART_OF_RAGNAROS_H, true);
 					me->m_Events.AddEvent(new DelayedDisappearAndDieEvent(me), me->m_Events.CalculateTime(3.6 * IN_MILLISECONDS));
-					//me->DespawnOrUnsummon();
+					me->DespawnOrUnsummon();
 
 					_JustDied();
 				}
