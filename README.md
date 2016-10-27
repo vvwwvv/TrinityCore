@@ -46,7 +46,7 @@ website at [TrinityCore.org](http://www.trinitycore.org).
 
 Detailed installation guides are available in the [wiki](http://collab.kpsn.org/display/tc/Installation+Guide) for
 Windows, Linux and Mac OSX.
-You can get database from https://github.com/TrinityCoreLegacy/TrinityCore/releases
+You can get database from https://github.com/JadeCore/TrinityCore/releases under JCWDB
 
 
 ## Reporting issues

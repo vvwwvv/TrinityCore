@@ -3,6 +3,7 @@
 #include "SpellScript.h"
 #include "SpellAuraEffects.h"
 #include "firelands.h"
+#include <Position.h>
 
 enum Texts
 {
@@ -409,10 +410,10 @@ SlotInfo HeroicSonsOfFlame[HeroicSonsOfFlameSize] =
 
 uint32 const EngulfingFlames[4][2] =
 {
-	{ { NULL },{ NULL } },
-	{ { SPELL_ENGULFING_FLAMES_NEAR },{ SPELL_ENGULFING_FLAMES_NEAR_VISUAL } },
-	{ { SPELL_ENGULFING_FLAMES_MIDDLE },{ SPELL_ENGULFING_FLAMES_MIDDLE_VISUAL } },
-	{ { SPELL_ENGULFING_FLAMES_FAR },{ SPELL_ENGULFING_FLAMES_FAR_VISUAL } }
+	{ NULL , NULL  },
+	{ SPELL_ENGULFING_FLAMES_NEAR , SPELL_ENGULFING_FLAMES_NEAR_VISUAL },
+	{ SPELL_ENGULFING_FLAMES_MIDDLE , SPELL_ENGULFING_FLAMES_MIDDLE_VISUAL },
+	{ SPELL_ENGULFING_FLAMES_FAR , SPELL_ENGULFING_FLAMES_FAR_VISUAL }
 };
 
 uint32 const CenariusPathSize = 13;
@@ -462,7 +463,7 @@ Position const RagnarosHeroicPosition = { 1072.38f, -57.4948f, 56.0f };
 
 struct DreadflameInfo
 {
-	Position Position;
+	Position FlamePosition;
 	ObjectGuid Owner;
 	std::vector<DreadflameInfo*> NearbyDreadflames;
 };
@@ -1117,14 +1118,14 @@ public:
 			for (int i = 0; i < DreadFlamesMax; i++)
 			{
 				DreadflameInfo* dreadflame = new DreadflameInfo();
-				dreadflame->Position = ConstDreadflames[i];
+				dreadflame->FlamePosition = ConstDreadflames[i];
 				dreadflame->Owner = ObjectGuid::Empty;
 				Dreadflames.push_back(dreadflame);
 			}
 
 			for (auto sourceDreadflame : Dreadflames)
 				for (auto targetDreadflame : Dreadflames)
-					if (sourceDreadflame != targetDreadflame && sourceDreadflame->Position.IsInDist2d(targetDreadflame->Position.GetPositionX(), targetDreadflame->Position.GetPositionY(), 5.1f))
+					if (sourceDreadflame != targetDreadflame && sourceDreadflame->FlamePosition.IsInDist2d(targetDreadflame->FlamePosition.GetPositionX(), targetDreadflame->FlamePosition.GetPositionY(), 5.1f))
 						sourceDreadflame->NearbyDreadflames.push_back(targetDreadflame);
 
 			me->CastSpell(me, SPELL_DREADFLAME_SPREAD_CONTROL_AURA, true);
@@ -1147,7 +1148,7 @@ public:
 		{
 			for (int i = 0; i < DreadFlamesMax; i++)
 			{
-				if (std::sqrt(dynObj->GetExactDist2dSq(Dreadflames[i]->Position.GetPositionX(), Dreadflames[i]->Position.GetPositionY()) < 3.0f))
+				if (std::sqrt(dynObj->GetExactDist2dSq(Dreadflames[i]->FlamePosition.GetPositionX(), Dreadflames[i]->FlamePosition.GetPositionY()) < 3.0f))
 				{
 					Dreadflames[i]->Owner = dynObj->GetGUID();
 					break;
@@ -1183,7 +1184,7 @@ public:
 						unlitNearbyDreadflames.push_back(nearbyDreadflame);
 
 				if (!unlitNearbyDreadflames.empty())
-					spreadPositions.push_back(Trinity::Containers::SelectRandomContainerElement(unlitNearbyDreadflames)->Position);
+					spreadPositions.push_back(Trinity::Containers::SelectRandomContainerElement(unlitNearbyDreadflames)->FlamePosition);
 			}
 			std::vector<DynamicObject*> dreadflames = me->GetDynObjects(SPELL_DREADFLAME_SPAWN);
 			if (spreadPositions.size() > (me->GetMap()->Is25ManRaid() ? 6 : 2))
@@ -1197,7 +1198,7 @@ public:
 			std::list<Position> positions;
 			for (auto dreadflame : Dreadflames)
 				if (dreadflame->Owner.IsEmpty())
-					positions.push_back(dreadflame->Position);
+					positions.push_back(dreadflame->FlamePosition);
 
 			return positions;
 		}
@@ -1221,10 +1222,10 @@ public:
 			{
 				DreadflameInfo* _dreadFlame = Trinity::Containers::SelectRandomContainerElement(dreadflame->NearbyDreadflames);
 				if (_dreadFlame->Owner.IsEmpty())
-					return _dreadFlame->Position;
+					return _dreadFlame->FlamePosition;
 			}
 			else if (unlitDreadflames.size() == 1)
-				return unlitDreadflames.front()->Position;
+				return unlitDreadflames.front()->FlamePosition;
 
 		}
 
@@ -1232,7 +1233,7 @@ public:
 		{
 			std::list<DreadflameInfo*> randomNearbyDreadflames;
 			for (auto dreadflame : Dreadflames)
-				if (distance > source->GetDistance2d(dreadflame->Position.GetPositionX(), dreadflame->Position.GetPositionY()))
+				if (distance > source->GetDistance2d(dreadflame->FlamePosition.GetPositionX(), dreadflame->FlamePosition.GetPositionY()))
 					randomNearbyDreadflames.push_back(dreadflame);
 
 			std::list<DreadflameInfo*> unlitDreadflames;
@@ -1244,10 +1245,10 @@ public:
 			{
 				DreadflameInfo* dreadflame = Trinity::Containers::SelectRandomContainerElement(randomNearbyDreadflames);
 				if (dreadflame->Owner.IsEmpty())
-					return dreadflame->Position;
+					return dreadflame->FlamePosition;
 			}
 			else if (unlitDreadflames.size() == 1)
-				return unlitDreadflames.front()->Position;
+				return unlitDreadflames.front()->FlamePosition;
 
 			return static_cast<Position>(NULL);
 		}
@@ -1431,8 +1432,9 @@ public:
 			if (!me->IsAlive())
 				return false;
 
-			//me->RemoveAurasOnEvade();
-			RemoveAuras(RagnarosAuraRemovePredicate(me));
+			me->RemoveAurasOnEvade();
+
+			//RemoveAuras(RagnarosAuraRemovePredicate());
 
 			// sometimes bosses stuck in combat?
 			me->DeleteThreatList();
@@ -1449,17 +1451,18 @@ public:
 		}
 
 		template <class Predicate>
-		void RemoveAuras(Predicate& predicate)
-		{
-			for (std::multimap<uint32, AuraApplication*>::iterator iter = me->GetAppliedAuras().begin(); iter != me->GetAppliedAuras().end();)
-			{
-				SpellInfo const* spell = iter->second->GetBase()->GetSpellInfo();
-				if (predicate(spell->Id))
-					me->RemoveAura(iter);
-				else
-					++iter;
-			}
-		}
+
+                void RemoveAuras(Predicate& predicate)
+                {
+                        for (std::multimap<uint32, AuraApplication*>::iterator iter = me->GetAppliedAuras().begin(); iter != me->GetAppliedAuras().end();)
+                        {
+                                SpellInfo const* spell = iter->second->GetBase()->GetSpellInfo();
+                                if (predicate(spell->Id))
+                                        me->RemoveAura(iter);
+                                else
+                                        ++iter;
+                        }
+                }
 
 		void CombatCleanup(bool wipe = true)
 		{
@@ -4918,10 +4921,7 @@ public:
 
 		void FilterTargets(std::list<WorldObject*>& targets)
 		{
-			Trinity::Containers::RandomResizeList(targets, [](WorldObject* target) -> bool
-			{
-				return target->GetTypeId() != TYPEID_UNIT || target->GetEntry() != NPC_MOLTEN_SEED_CASTER;
-			}, 1);
+			Trinity::Containers::RandomResizeList(targets, 1);
 		}
 
 		void Register() override
