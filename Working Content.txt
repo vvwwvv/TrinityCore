@@ -88,4 +88,19 @@ Firelands
 		Legendary quest line (Heart of ragnaros) needs to be fixed
 		Chest position needs to be fixed.
 		Boss Damage and attack speed needs to be fixed 
+
+Zul'Gurub
+		
+		- Bloodlord Mandokir - 100% Working
+			- Decapitate - 100% Working
+			- Level Up - 100% Working
+			- Devastating Slam - 100% Working
+			- Bloodletting - 
+			- Frenzy - 100% Working
+		- Ohgan - 100% Working
+			- Ohgan's Orders - 100% Working
+			- Reanimate Ohgan - 100% Working
+		- Chained Spirit - 100% Working
+			- Revive - 100% Working
+			- Spirit's Vengeance - 100% Working
 		
