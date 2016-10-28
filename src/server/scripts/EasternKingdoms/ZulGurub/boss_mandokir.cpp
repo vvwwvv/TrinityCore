@@ -88,7 +88,7 @@ enum Action
 enum Misc
 {
     POINT_START_REVIVE          = 1,
-
+    MODEL_OHGAN_MOUNT           = 37787,
     DATA_OHGANOT_SO_FAST        = 5762,
 
     FACTION_NONE                = 1665
@@ -114,7 +114,7 @@ class boss_mandokir : public CreatureScript
                 DoCastAOE(SPELL_SPIRIT_VENGEANCE_CANCEL);
 
                 _Reset();
-
+                me->Mount(MODEL_OHGAN_MOUNT);
                 me->SummonCreatureGroup(SUMMON_GROUP_CHAINED_SPIRIT);
                 _ohganotSoFast = true;
                 _reanimateOhganCooldown = false;
@@ -142,6 +142,7 @@ class boss_mandokir : public CreatureScript
                 events.ScheduleEvent(EVENT_BLOODLETTING, 15000);
                 events.ScheduleEvent(EVENT_SUMMON_OHGAN, 20000);
                 events.ScheduleEvent(EVENT_DEVASTATING_SLAM, 25000);
+                instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
             }
 
             void JustDied(Unit* /*killer*/) override
@@ -149,6 +150,7 @@ class boss_mandokir : public CreatureScript
                 DoCastAOE(SPELL_SPIRIT_VENGEANCE_CANCEL);
                 _JustDied();
                 Talk(SAY_DEATH);
+                instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
             }
 
             void KilledUnit(Unit* victim) override
@@ -239,11 +241,12 @@ class boss_mandokir : public CreatureScript
                             DoCast(me, SPELL_SUMMON_OHGAN, true);
                             break;
                         case EVENT_DECAPITATE:
-                            DoCastAOE(SPELL_DECAPITATE);
+                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                                DoCast(target,SPELL_DECAPITATE);
                             events.ScheduleEvent(EVENT_DECAPITATE, me->HasAura(SPELL_FRENZY) ? 17500 : 35000);
                             break;
                         case EVENT_BLOODLETTING:
-                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 0.0f, true))
+                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
                             {
                                 DoCast(target, SPELL_BLOODLETTING, true);
                                 me->ClearUnitState(UNIT_STATE_CASTING);
@@ -266,15 +269,16 @@ class boss_mandokir : public CreatureScript
                             _reanimateOhganCooldown = false;
                             break;
                         case EVENT_DEVASTATING_SLAM:
-                            DoCastAOE(SPELL_DEVASTATING_SLAM_TRIGGER);
+                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                                DoCast(target,SPELL_DEVASTATING_SLAM_TRIGGER);
                             events.ScheduleEvent(EVENT_DEVASTATING_SLAM, 30000);
                             break;
                         default:
                             break;
                     }
 
-                    if (me->HasUnitState(UNIT_STATE_CASTING))
-                        return;
+					if (me->HasUnitState(UNIT_STATE_CASTING))
+						return;
                 }
 
                 DoMeleeAttackIfReady();
@@ -307,6 +311,7 @@ class npc_ohgan : public CreatureScript
             void EnterCombat(Unit* /*who*/) override
             {
                 DoCastAOE(SPELL_OHGAN_ORDERS, true);
+                _instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
             }
 
             void DamageTaken(Unit* /*attacker*/, uint32& damage) override
@@ -319,6 +324,7 @@ class npc_ohgan : public CreatureScript
                     me->SetTarget(ObjectGuid::Empty);
                     DoCast(me, SPELL_CLEAR_ALL, true);
                     DoCast(me, SPELL_PERMANENT_FEIGN_DEATH);
+                    _instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
 
                     if (Creature* mandokir = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_MANDOKIR)))
                         mandokir->AI()->DoAction(ACTION_OHGAN_IS_DEATH);
@@ -330,7 +336,7 @@ class npc_ohgan : public CreatureScript
                 if (Creature* creature = victim->ToCreature())
                 {
                     if (creature->GetEntry() == NPC_CHAINED_SPIRIT)
-                        DoCastAOE(SPELL_OHGAN_ORDERS, true);
+                        DoCast(creature, SPELL_OHGAN_ORDERS, true);
                 }
             }
 
@@ -387,6 +393,12 @@ class npc_chained_spirit : public CreatureScript
                         me->GetMotionMaster()->MovePoint(POINT_START_REVIVE, pos);
                     }
                 }
+            }
+
+            void DamageTaken(Unit* attacker, uint32& damage) override
+            {
+                if (attacker->GetEntry() == NPC_OHGAN /*&& damage >= me->GetHealth()*/)
+                    attacker->Kill(me);
             }
 
             void MovementInform(uint32 type, uint32 pointId) override
@@ -642,7 +654,10 @@ class spell_mandokir_ohgan_orders : public SpellScriptLoader
             {
                 Unit* caster = GetCaster();
                 if (Unit* target = GetHitUnit())
+                //{
                     caster->CastSpell(target, uint32(GetEffectValue()), true);
+                    //caster->DealDamage(target, target->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+                //}
             }
 
             void Register() override
@@ -677,7 +692,7 @@ class spell_mandokir_ohgan_orders_trigger : public SpellScriptLoader
                     caster->GetMotionMaster()->Clear();
                     caster->DeleteThreatList();
                     caster->AddThreat(target, 50000000.0f);
-                    caster->TauntApply(target);
+                    caster->TauntApply(target);                    
                 }
             }
 
