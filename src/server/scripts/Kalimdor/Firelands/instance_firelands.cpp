@@ -31,6 +31,7 @@ DoorData const doorData[] =
 	{ 0,                        0,                          DOOR_TYPE_ROOM } //END
 };
 
+Position const shannoxspawn = { -12.359400f, -64.958298f, 56.256401f, 0.00000f };
 class instance_firelands : public InstanceMapScript
 {
 public:
@@ -79,7 +80,7 @@ public:
 				break;
 			}
 		}
-
+		
 		void OnGameObjectCreate(GameObject* go) override
 		{
 			/*if ((go->GetAreaId() == AREA_SULFURON_KEEP_COURTYARD || go->GetAreaId() == AREA_SULFURON_KEEP) && !CourtyardDefeated() && go->GetEntry() != GO_RAGNAROS_PLATFORM)
@@ -121,6 +122,14 @@ public:
 
 			switch (type)
 			{
+			case DATA_SHANNOX:
+				if(state == FAIL)
+					scheduler.Schedule(Seconds(15), [this](TaskContext)
+				{
+					instance->SummonCreature(NPC_SHANNOX, shannoxspawn);
+
+				});
+				break;
 			case DATA_RAGNAROS:
 				if (state == FAIL)
 				{
@@ -134,7 +143,89 @@ public:
 
 			return true;
 		}
+		void OnUnitDeath(Unit* killed) override
+		{
+			switch (killed->GetEntry())
+			{
+			case 53116:
+			case 53167:
+			case 53115:
+			case 53206:
+			case 53223:
+			case 53121:
+			case 54073:
+			case 53222:
+			case 53244:
+			case 53224:
+			case 53119:
+			case 53134:
+			case 53141:
+			case 53096:
+			case 53619:
+			case 53094:
+			case 53095:
+			case 53635:
+			case 53128:
+			case 53127:
+			case 53120:
+			case 53732:
+			case 53901:
+			case 53188:
+			case 53187:
+			case 53130:
+			case 53185:
+			case 53648:
+			case 53631:
+			case 53642:
+			case 53640:
+			case 53639:
 
+				slainThrash++;
+				break;
+			}
+			switch (slainThrash)
+			{
+			case 25:
+				if (GetBossState(DATA_SHANNOX) != DONE)
+			{
+				Map::PlayerList const& playerList = instance->GetPlayers();
+				for (auto const& playerRef : playerList)
+				{
+					Player* player = playerRef.GetSource();
+					player->GetSession()->SendAreaTriggerMessage("%s As the creatures of the Firelands fall, a huntsman's horn sounds in the distance.", "|TInterface\\Icons\\inv_misc_horn_03:20|t");
+					player->PlayDirectSound(7054);
+				}
+			}
+				break;
+			case 40:
+
+				if (GetBossState(DATA_SHANNOX) != DONE)
+			{
+				Map::PlayerList const& playerList = instance->GetPlayers();
+				for (auto const& playerRef : playerList)
+				{
+					Player* player = playerRef.GetSource();
+					player->GetSession()->SendAreaTriggerMessage("%s The hunting horn sounds again, nearer and more urgently", "|TInterface\\Icons\\inv_misc_horn_03:20|t");
+					player->PlayDirectSound(7054);
+				}
+			}
+				break;
+			case 50:
+				if (GetBossState(DATA_SHANNOX) != DONE)
+				{
+					Creature* shannox = instance->SummonCreature(NPC_SHANNOX, shannoxspawn);
+
+
+					if (GameObject* BalerocWall = (shannox->FindNearestGameObject(GO_FIRE_WALL_BALEROC, 5000.0f)))
+						BalerocWall->SetGoState(GO_STATE_ACTIVE);
+				}
+				SetData(DATA_SHANNOX, NOT_STARTED);
+
+					
+			
+				break;
+			}
+		}
 		void SetData(uint32 data, uint32 value) override
 		{
 			switch (data)
@@ -193,7 +284,9 @@ public:
 
 			scheduler.Update(diff);
 		}
+	private:
 
+		uint32 slainThrash = 0;
 	protected:
 		bool RagnarosEmerged;
 		bool RagnarosFirstEmerge;
@@ -210,6 +303,7 @@ public:
 		ObjectGuid RagnarosPlatformGUID;
 
 		TaskScheduler scheduler;
+
 	};
 
 	InstanceScript* GetInstanceScript(InstanceMap* map) const override
@@ -217,7 +311,6 @@ public:
 		return new instance_firelands_InstanceScript(map);
 	}
 };
-
 void AddSC_instance_firelands()
 {
 	new instance_firelands();
