@@ -104,3 +104,12 @@ Zul'Gurub
 			- Revive - 100% Working
 			- Spirit's Vengeance - 100% Working
 		
+The Vortex Pinnacle
+		
+		- Asaad - 100% Working
+			- Unstable Grounding Field - 100% Working
+			- Supremacy of the Storm - 100% Working
+			- Chain Lightning - 100% Working
+			- Skyfall Star - 100% Working
+				- Arcane Barrage - 100% Working
+			- Static Cling - 100% Working
