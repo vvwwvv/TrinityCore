@@ -12,11 +12,16 @@ The Stonecore
 
 Firelands
 
-	- Shannox - 50% Working
+	-Thrash - 20% working
+		-loot is bugged to high drops.
+		- Shannox (1st horn, 2nd horn, Summon, Deactivate door) - 100%Working
+		- Waypoints needed
+	- Shannox - 90% Working
+		- Needs correct waypoint
 		- Immolation Trap - 100% Working
-		- Crystal Prison Trap - 50% Working (Needs to spawn Crystal Prison)
+		- Crystal Prison Trap - 90% Working (needs fix for dogs)
 		- Arcing Slash - 90% Working (Damage needs to be fixed)
-		- Hurl Spear - 0% Working
+		- Hurl Spear - 50% Working (Riplimb has problems)
 		- Frenzy - 100% Working
 		- Magma Rupture - 0% Working
 		- Frenzied Devotion - 100% working
@@ -25,8 +30,8 @@ Firelands
 				- Jagged Tear 100% Working
 			- Frenzied Devotion - 100% Working
 			
-		- Rageface - 50% Working
-			- Face Rage 0% Working
+		- Rageface - 100% Working
+			- Face Rage 100% Working
 			- Frenzied Devotion - 100% working
 		
 		
