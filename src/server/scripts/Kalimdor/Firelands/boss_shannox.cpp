@@ -89,11 +89,12 @@ enum Events
 	EVENT_RESURRECT = 12,
 	EVENT_MAGMA_RUPTURE_2 = 13,
 	EVENT_UNIT_IN_LOS = 14,
-	EVENT_CHECK_COMBAT = 15,
+	EVENT_CHECK_COMBAT = 15, 
+	EVENT_RETRIEVE_SPEAR = 16,
 };
 enum Adds
 {
-	NPC_SPEAR_OF_SHANNOX_1 = 53752, 
+	NPC_SPEAR_OF_SHANNOX_1 = 53752,
 	NPC_SPEAR_OF_SHANNOX_2 = 54112, //?
 	NPC_CRYSTAL_PRISON_TRAP = 53713,
 	NPC_CRYSTAL_PRISON = 53819,
@@ -122,30 +123,36 @@ enum BucketListAreaIds
 };
 const Position dogPos[2] =
 {
-	{ 29.158001f, -73.9114999f, 54.783500f, 3.15f}, // Riplimb
+	{ 29.158001f, -73.9114999f, 54.783500f, 3.15f }, // Riplimb
 	{ 29.515600f, -65.701401f, 54.585499f, 3.15f }  // Rageface
 };
-class boss_shannox: public CreatureScript
+Position const shannoxspawn = { -12.359400f, -64.958298f, 56.256401f, 0.00000f };
+class boss_shannox : public CreatureScript
 {
 public:
 	boss_shannox() : CreatureScript("boss_shannox") { }
 
 	struct boss_shannoxAI : public BossAI
 	{
-		boss_shannoxAI(Creature* creature) : BossAI(creature, DATA_SHANNOX) { Initialize(); }
+		boss_shannoxAI(Creature* creature) : BossAI(creature, DATA_SHANNOX) {}
 
-		void Initialize()
+		void InitializeAI() override
 		{
-			me->LoadPath(4599104);
+			me->GetMotionMaster()->MovePath(4599104, true);
 			me->Yell("Yes... I smell them too, Riplimb. Outsiders encroach on the Firelord's private grounds. Find their trail, find them for me, that I may dispense punishment!", LANG_UNIVERSAL);
-				
 			me->PlayDistanceSound(24584);
+
+
+			me->SummonCreature(NPC_RIPLIMB, dogPos[0]);
+			me->SummonCreature(NPC_RAGEFACE, dogPos[1]);
 		}
 
 		void Reset() override
 		{
 			_Reset();
 
+			me->GetMotionMaster()->MovePath(4599104, true);
+			me->DespawnOrUnsummon();
 
 			if (Creature * riplimb = ObjectAccessor::GetCreature(*me, instance->GetGuidData(NPC_RIPLIMB)))
 				riplimb->DespawnOrUnsummon();
@@ -153,6 +160,7 @@ public:
 				rageface->DespawnOrUnsummon();
 
 
+			me->SummonCreature(NPC_SHANNOX, shannoxspawn);
 			me->SummonCreature(NPC_RIPLIMB, dogPos[0]);
 			me->SummonCreature(NPC_RAGEFACE, dogPos[1]);
 
@@ -167,10 +175,11 @@ public:
 					return false;
 			return true;
 		}
-		
+
 
 		void EnterCombat(Unit* /*target*/) override
 		{
+			instance->SetData(DATA_SHANNOX, IN_PROGRESS);
 			instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
 			me->Yell("Aha! The interlopers... Kill them! EAT THEM!", LANG_UNIVERSAL);
 			me->PlayDirectSound(24565);
@@ -179,18 +188,21 @@ public:
 
 
 			for (int i = 0; i < 5; i++)
-				areas[i] = false; 
+				areas[i] = false;
 
+			Position pos = me->GetPosition();
 
 			if (Creature* riplimb = me->FindNearestCreature(NPC_RIPLIMB, 1000.0f, true))
 
 				DoZoneInCombat(riplimb);
 			else
-				_Reset();//Riplimb is missing, Reset
+
+				me->SummonCreature(NPC_RIPLIMB, pos);
 			if (Creature* rageface = me->FindNearestCreature(NPC_RAGEFACE, 1000.0f, true))
 				DoZoneInCombat(rageface);
 			else
-				_Reset();//Rageface is missing, Reset
+
+				me->SummonCreature(NPC_RAGEFACE, pos);
 
 			events.ScheduleEvent(EVENT_BERSERK, 10 * MINUTE * IN_MILLISECONDS);
 			events.ScheduleEvent(EVENT_HURL_SPEAR, 15000);
@@ -232,6 +244,7 @@ public:
 		void JustDied(Unit* /*killer*/) override
 		{
 			_JustDied();
+			instance->SetData(DATA_SHANNOX, DONE);
 			instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
 			me->Yell("The pain... Lord of fire, it hurts...", LANG_UNIVERSAL);
 
@@ -251,13 +264,15 @@ public:
 					break;
 				}
 			}
-			
+
 		}
 
 		void EnterEvadeMode(EvadeReason /*why*/) override
 		{
 			_Reset();
 			events.Reset();
+			instance->SetBossState(DATA_SHANNOX, FAIL);
+			instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, me);
 			me->DespawnOrUnsummon();
 		}
 
@@ -291,14 +306,43 @@ public:
 					areas[4] = true;
 				break;
 			}
+			AlivePlayers = 0;
+			TrappedPlayers = 0;
+			Map::PlayerList const& playerList = me->GetMap()->GetPlayers();
+			for (auto const& playerRef : playerList)
+			{
+				Player* player = playerRef.GetSource();
+				if (player->IsAlive())
+					AlivePlayers++;
+				if (player->HasAura(SPELL_CRYSTAL_PRISON_TRAP))
+					TrappedPlayers++;
+			}
+			if (AlivePlayers == TrappedPlayers && AlivePlayers != 0 && TrappedPlayers != 0) //? because if your in the crystal prsion trap, shannox will reset if your only one alive, and if 2 are in trap and only 2 left alive.. 
+			{
+
+				for (auto const& playerRef : playerList)
+				{
+					Player* player = playerRef.GetSource();
+					me->Kill(player);
+			}
+			}
+			
 
 			events.Update(diff);
+			if (!RiplimbDead && !IsHeroic())
+				if (Creature* riplimb = me->FindNearestCreature(NPC_RIPLIMB, 1000.0f, true))
+					if (riplimb->isDead())
+					{
+						RiplimbDead = true;
+						events.CancelEvent(EVENT_HURL_SPEAR);
+						events.ScheduleEvent(EVENT_MAGMA_RUPTURE, 5000.0f);
+					}
 
 			if (!IsHeroic() && !frenzy && me->HealthBelowPct(30))
 			{
 				frenzy = true;
 				if (Creature* riplimb = me->FindNearestCreature(NPC_RIPLIMB, 1000.0f, true))
-						riplimb->CastSpell(riplimb, SPELL_FRENZIED_DEVOTION, true);
+					riplimb->CastSpell(riplimb, SPELL_FRENZIED_DEVOTION, true);
 				if (Creature* rageface = me->FindNearestCreature(NPC_RAGEFACE, 1000.0f, true))
 					rageface->CastSpell(rageface, SPELL_FRENZIED_DEVOTION, true);
 			}
@@ -315,7 +359,7 @@ public:
 					{
 						if (Creature* riplimb = me->FindNearestCreature(NPC_RIPLIMB, 1000.0f, true))
 							if (riplimb->IsInCombat() && !riplimb->IsInEvadeMode())
-									DoZoneInCombat(riplimb);
+								DoZoneInCombat(riplimb);
 
 						if (Creature* rageface = me->FindNearestCreature(NPC_RAGEFACE, 1000.0f, true))
 							if (rageface->IsInCombat() && !rageface->IsInEvadeMode())
@@ -327,14 +371,14 @@ public:
 				case EVENT_SEPARATION_ANXIETY:
 
 					if (Creature* riplimb = me->FindNearestCreature(NPC_RIPLIMB, 1000.0f, true))
-						if(riplimb->IsAlive())
-							if ( !me->IsWithinDist(riplimb, 80.0f) && !me->HasAura(SPELL_SEPARATION_ANXIETY))
-							DoCast(me, SPELL_SEPARATION_ANXIETY, true);
+						if (riplimb->IsAlive())
+							if (!me->IsWithinDist(riplimb, 80.0f) && !me->HasAura(SPELL_SEPARATION_ANXIETY))
+								DoCast(me, SPELL_SEPARATION_ANXIETY, true);
 
 					if (Creature* rageface = me->FindNearestCreature(NPC_RAGEFACE, 1000.0f, true))
-						if(rageface->IsAlive())
-							if ( !me->IsWithinDist(rageface, 80.0f) && !me->HasAura(SPELL_SEPARATION_ANXIETY))
-							DoCast(me, SPELL_SEPARATION_ANXIETY, true);
+						if (rageface->IsAlive())
+							if (!me->IsWithinDist(rageface, 80.0f) && !me->HasAura(SPELL_SEPARATION_ANXIETY))
+								DoCast(me, SPELL_SEPARATION_ANXIETY, true);
 
 
 					events.ScheduleEvent(EVENT_SEPARATION_ANXIETY, 2000);
@@ -352,6 +396,8 @@ public:
 				case EVENT_HURL_SPEAR:
 					if (Creature* riplimb = me->FindNearestCreature(NPC_RIPLIMB, 300.0f))
 						DoCast(riplimb, SPELL_HURL_SPEAR_SUMMON, true);
+					if (Creature* spear = me->FindNearestCreature(NPC_SPEAR_OF_SHANNOX_1, 300.0f))
+						DoCast(spear, SPELL_HURL_SPEAR_DMG, true);
 					events.ScheduleEvent(EVENT_HURL_SPEAR, 42000);
 					break;
 
@@ -366,21 +412,40 @@ public:
 					events.ScheduleEvent(EVENT_CRYSTAL_PRISON_TRAP, 25500);
 					break;
 				case EVENT_MAGMA_RUPTURE:
+				{
+					int rand = (urand(1, 2));
+					switch (rand)
+					{
+					case 1:
+
+						me->Yell("Twist in flames, interlopers!", LANG_UNIVERSAL);
+						me->PlayDirectSound(24577);
+						break;
+
+					case 2:
+
+						me->Yell("Now you burn!", LANG_UNIVERSAL);
+						me->PlayDirectSound(24576);
+						break;
+					default:
+
+						break;
+					}
 					DoCast(me, SPELL_MAGMA_RUPTURE);
 					events.ScheduleEvent(EVENT_MAGMA_RUPTURE_2, 1500);
 					events.ScheduleEvent(EVENT_MAGMA_RUPTURE, 20000);
-					break;
+				}	break;
 				case EVENT_MAGMA_RUPTURE_2:
 					// There will be a spiral, 3 "circles", 20 points per circle
-					Position pos;
+					Position pos = me->GetPosition();
 					for (uint8 i = 0; i < 60; ++i)
 					{
-						me->GetNearPosition( 15.0f + i * 0.75f, (M_PI * i) / 10);
+						me->GetNearPosition(15.0f + i * 0.75f, (M_PI * i) / 10);
 						pos.m_positionZ = me->GetMap()->GetHeight(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), true, MAX_HEIGHT);
 						me->CastSpell(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), SPELL_MAGMA_RUPTURE_MISSILE, true);
 					}
 					break;
-						
+
 
 				}
 			}
@@ -388,15 +453,17 @@ public:
 			DoMeleeAttackIfReady();
 		}
 
-	
+
 
 	private:
+		uint32 AlivePlayers = 0;
+		uint32 TrappedPlayers = 0;
 		uint32 Phase;
 		bool RiplimbDead = false;
 		bool RagefaceDead = false;
 		bool areas[5];
 		bool frenzy = false;
-		
+
 
 	};
 
@@ -413,11 +480,11 @@ public:
 
 	struct npc_riplimbAI : public CreatureAI
 	{
-		npc_riplimbAI(Creature* creature) : CreatureAI(creature) { Initialize();  }
+		npc_riplimbAI(Creature* creature) : CreatureAI(creature) { Initialize(); }
 
 		void Initialize()
 		{
-			if(Creature* shannox = me->FindNearestCreature(NPC_SHANNOX, 500.0f, true))
+			if (Creature* shannox = me->FindNearestCreature(NPC_SHANNOX, 500.0f, true))
 
 				me->GetMotionMaster()->MoveFollow(shannox, 0.0f, 0.0f);
 		}
@@ -453,6 +520,9 @@ public:
 			else
 				me->DespawnOrUnsummon();//Shannox is not there? Despawn
 
+			events.ScheduleEvent(EVENT_LIMB_RIP, 6000);
+			events.ScheduleEvent(EVENT_SEPARATION_ANXIETY, 3000);
+			events.ScheduleEvent(EVENT_CHECK_COMBAT, 5000);
 			DoZoneInCombat();
 		}
 		void DamageTaken(Unit* attacker, uint32& damage) override
@@ -473,28 +543,7 @@ public:
 				events.ScheduleEvent(EVENT_RESURRECT, 30000);
 			}
 		}
-		
-		void DoAction(int32 action) override
-		{
-			switch (action)
-			{
-				case ACTION_HURL_SPEAR:
-					if (dead)
-					{
-						if (Creature* spear = me->FindNearestCreature(NPC_SPEAR_OF_SHANNOX_1, 300.0f))
-							spear->DespawnOrUnsummon();
-						return;
-					}
-					events.Reset();
-					me->SetReactState(REACT_PASSIVE);
-					me->AttackStop();
-					me->RemoveMovementImpairingAuras();
-					me->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_SNARE, false);
-					DoCast(me, SPELL_DOGGED_DETERMINATION, true);
-					break;
-				
-			}
-		}
+
 		void MovementInform(uint32 type, uint32 id) override
 		{
 			if (type == POINT_MOTION_TYPE)
@@ -511,18 +560,25 @@ public:
 
 		void UpdateAI(uint32 diff) override
 		{
-			if (fetch)
+			if (Creature* spear = me->FindNearestCreature(NPC_SPEAR_OF_SHANNOX_1, 4.0f))
 			{
-				if (Creature* pShannox = me->FindNearestCreature(NPC_SHANNOX, 1.0f))
+				spear->DespawnOrUnsummon();
+				me->GetMotionMaster()->Clear();
+				fetchSpear = true;
+				events.ScheduleEvent(EVENT_RETRIEVE_SPEAR, 1000);
+			}
+			if(fetchSpear)
+				if (Creature* pShannox = me->FindNearestCreature(NPC_SHANNOX, 3.0f))
 				{
 					fetch = false;
 					me->RemoveAurasDueToSpell(SPELL_DOGGED_DETERMINATION);
 					me->RemoveAurasDueToSpell(SPELL_FETCH_SPEAR);
-					me->GetMotionMaster()->MovementExpired();
+					me->GetMotionMaster()->Clear();
 					me->RemoveMovementImpairingAuras();
 					me->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_SNARE, true);
 					me->SetReactState(REACT_AGGRESSIVE);
-					events.ScheduleEvent(EVENT_LIMB_RIP, 5000);
+					events.ScheduleEvent(EVENT_LIMB_RIP, 6000);
+					events.ScheduleEvent(EVENT_SEPARATION_ANXIETY, 3000);
 					if (me->GetVictim())
 						AttackStart(me->GetVictim());
 					else
@@ -531,8 +587,20 @@ public:
 							AttackStart(pTarget);
 					}
 				}
-				return;
-			}
+			
+
+			if(!fetchSpear)
+					if (Creature* spear = me->FindNearestCreature(NPC_SPEAR_OF_SHANNOX_1, 500.0f))
+					{
+						me->GetMotionMaster()->Clear();
+						events.Reset();
+						events.CancelEvent((EVENT_SEPARATION_ANXIETY, EVENT_LIMB_RIP));
+						events.ScheduleEvent(EVENT_HURL_SPEAR, 2000);
+						fetchSpear = true;
+					}
+				
+
+
 
 			if (!UpdateVictim() && !dead)
 				return;
@@ -566,11 +634,11 @@ public:
 					events.ScheduleEvent(EVENT_SEPARATION_ANXIETY, 2000);
 					break;
 				case EVENT_FETCH_SPEAR:
-					if (Creature* pShannox = ObjectAccessor::GetCreature(*me, instance->GetGuidData(NPC_SHANNOX)))
+					if (Creature* Shannox = me->FindNearestCreature(NPC_SHANNOX, 500.0f))
 					{
 						fetch = true;
 						me->GetMotionMaster()->MovementExpired(false);
-						me->GetMotionMaster()->MoveFollow(pShannox, 0.0f, 0.0f);
+						me->GetMotionMaster()->MoveFollow(Shannox, 0.0f, 0.0f);
 					}
 					break;
 				case EVENT_LIMB_RIP:
@@ -587,17 +655,47 @@ public:
 					if (instance)
 						if (Unit* pShannox = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_SHANNOX)))
 							pShannox->GetAI()->DoAction(ACTION_RESURRECT);
+					break; 
+				case ACTION_HURL_SPEAR:
+						if (dead)
+						{
+							if (Creature* spear = me->FindNearestCreature(NPC_SPEAR_OF_SHANNOX_1, 300.0f))
+								spear->DespawnOrUnsummon();
+							return;
+						}
+						events.Reset();
+						me->SetReactState(REACT_PASSIVE);
+						me->AttackStop();
+						me->RemoveMovementImpairingAuras();
+						me->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_SNARE, false);
+						DoCast(me, SPELL_DOGGED_DETERMINATION, true);
+
+						me->GetMotionMaster()->Clear();
+						if (Creature* spear = me->FindNearestCreature(NPC_SPEAR_OF_SHANNOX_1, 300.0f))
+							me->GetMotionMaster()->MovePoint(0, spear->GetPositionX(), spear->GetPositionY(), spear->GetPositionZ());
+						break;
+				case EVENT_RETRIEVE_SPEAR:
+					if (Creature* shannox = me->FindNearestCreature(NPC_SHANNOX, 300.0f))
+					{
+						me->SetReactState(REACT_PASSIVE);
+						me->AttackStop();
+						me->RemoveMovementImpairingAuras();
+						me->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_SNARE, false);
+						DoCast(me, SPELL_DOGGED_DETERMINATION, true);
+						me->GetMotionMaster()->MoveChase(shannox, 0.0f, 0.0f);
+					}
 					break;
 				}
 			}
-			
+
 			DoMeleeAttackIfReady();
 
 
 		}
 	private:
-		bool fetch;
-		bool dead;
+		bool fetch = false;
+		bool fetchSpear = false;
+		bool dead = false;
 		EventMap events;
 		InstanceScript* instance = me->GetInstanceScript();
 
@@ -610,7 +708,7 @@ public:
 	}
 };
 
-class npc_rageface: public CreatureScript
+class npc_rageface : public CreatureScript
 {
 public:
 	npc_rageface() : CreatureScript("npc_rageface") {}
@@ -641,9 +739,9 @@ public:
 
 			if (Creature* shannox = me->FindNearestCreature(NPC_SHANNOX, 1000.0f))
 			{
-			shannox->Yell("You murderers! Why... why would you kill such a noble animal?!", LANG_UNIVERSAL);
-			shannox->PlayDirectSound(24575);
-				shannox->AddAura(SPELL_FRENZY,  shannox);
+				shannox->Yell("You murderers! Why... why would you kill such a noble animal?!", LANG_UNIVERSAL);
+				shannox->PlayDirectSound(24575);
+				shannox->AddAura(SPELL_FRENZY, shannox);
 			}
 		}
 
@@ -654,23 +752,60 @@ public:
 			else
 				me->DespawnOrUnsummon();//Shannox is not there? Despawn
 
+
+			events.ScheduleEvent(EVENT_FACE_RAGE, 7000);
+			events.ScheduleEvent(EVENT_CHANGE_TARGET, 5000);
+			events.ScheduleEvent(EVENT_SEPARATION_ANXIETY, 3000);
+			events.ScheduleEvent(EVENT_CHECK_COMBAT, 5000);
+
 		}
 		void DamageTaken(Unit* attacker, uint32 &damage) override
 		{
 			if (attacker->GetTypeId() != TYPEID_PLAYER)
 				return;
 
-			if (AuraEffect* const aurEff = me->GetAuraEffect((100129, 101212, 101213, 101214), EFFECT_1))
+			/*if (AuraEffect* const aurEff = me->GetAuraEffect((100129, 101212, 101213, 101214), EFFECT_1))
 			{
 				if (int32(damage) >= aurEff->GetAmount())
 				{
 					me->InterruptSpell(CURRENT_CHANNELED_SPELL, false);
-					//me->GetAI()->DoResetThreat();
 					DoCast(attacker, SPELL_RAGE, true);
 					me->AddThreat(attacker, 10000000.0f);
 					AttackStart(attacker);
 					me->RemoveAurasDueToSpell((100129, 101212, 101213, 101214));
 				}
+			}*/
+			uint32 breakRageFace = 0;
+			switch (me->GetMap()->GetSpawnMode())
+			{
+			case RAID_DIFFICULTY_10MAN_NORMAL:
+				breakRageFace = 30000;
+				break;
+			case RAID_DIFFICULTY_10MAN_HEROIC:
+				breakRageFace = 30000;
+				break;
+
+			case RAID_DIFFICULTY_25MAN_NORMAL:
+				breakRageFace = 45000;
+				break;
+
+			case RAID_DIFFICULTY_25MAN_HEROIC:
+				breakRageFace = 45000;
+				break;
+
+
+			default:
+				breakRageFace = 30000;
+				break;
+			}
+			if (damage >= breakRageFace)
+			{
+				me->InterruptSpell(CURRENT_CHANNELED_SPELL, false);
+				DoCast(attacker, SPELL_RAGE, true);
+				me->AddThreat(attacker, 10000000.0f);
+				AttackStart(attacker);
+				me->RemoveAurasDueToSpell((100129, 101212, 101213, 101214));
+
 			}
 		}
 
@@ -686,7 +821,7 @@ public:
 
 		void UpdateAI(uint32 diff) override
 		{
-			
+
 			if (!UpdateVictim())
 				return;
 
@@ -774,14 +909,15 @@ public:
 	{
 		npc_shannox_spearAI(Creature* creature) : CreatureAI(creature) { }
 
-	
+
 		void Reset() override
 		{
 			DoCast(me, SPELL_SPEAR_TARGET, true);
-		}	
+		}
 		void InitializeAI() override
 		{
 			me->SetReactState(REACT_PASSIVE);
+			DoCast(me, SPELL_SPEAR_TARGET, true);
 		}
 		void SpellHit(Unit* caster, SpellInfo const* spell) override
 		{
@@ -830,7 +966,7 @@ public:
 				}
 			}
 		}
-	
+
 
 		void UpdateAI(uint32 diff) override
 		{
@@ -965,6 +1101,7 @@ public:
 			{
 				if (Player* pPlayer = me->SelectNearestPlayer(0.1f))
 				{
+
 					bExplode = true;
 					pPlayer->CastSpell(pPlayer, SPELL_CRYSTAL_PRISON_TRAP, true);
 					me->DespawnOrUnsummon(500);
@@ -993,7 +1130,7 @@ public:
 						me->DespawnOrUnsummon(500);
 					}
 				}
-			
+
 			}
 		}
 	private:
@@ -1024,7 +1161,7 @@ public:
 
 		void InitializeAI() override
 		{
-			trappedUnit = 0;
+			me->SetReactState(REACT_PASSIVE);
 			tDog = false;
 		}
 
@@ -1039,15 +1176,14 @@ public:
 				dogTimer = 10000;
 			}
 
-		}  
+		}
 		void JustDied(Unit* /*killer*/)
 		{
-			if (!tDog)
-				DoCast(me, SPELL_CREATE_EMBERSTONE_FRAGMENT, true);
+			//if (!tDog)
+			//	DoCast(me, SPELL_CREATE_EMBERSTONE_FRAGMENT, true); // This needs sniffs ( Legendary Quest line)
 			tDog = false;
-			if (Unit* unit = ObjectAccessor::GetUnit(*me, instance->GetGuidData(trappedUnit)))
+			if (Unit* unit = ObjectAccessor::GetUnit(*me, trappedUnit))
 			{
-				trappedUnit = 0;
 				unit->RemoveAurasDueToSpell(SPELL_CRYSTAL_PRISON_TRAP);
 			}
 			me->DespawnOrUnsummon(800);
@@ -1060,7 +1196,7 @@ public:
 
 			if (existenceCheckTimer <= diff)
 			{
-				Unit* unit = ObjectAccessor::GetUnit(*me, instance->GetGuidData(trappedUnit));
+				Unit* unit = ObjectAccessor::GetUnit(*me, trappedUnit);
 				if (!unit || unit->isDead() || !unit->HasAura(SPELL_CRYSTAL_PRISON_TRAP))
 				{
 					JustDied(me);
@@ -1081,7 +1217,7 @@ public:
 	private:
 
 		InstanceScript* instance = me->GetInstanceScript();
-		uint64 trappedUnit;
+		ObjectGuid trappedUnit;
 		uint32 existenceCheckTimer;
 		bool tDog;
 		uint32 dogTimer;
@@ -1092,6 +1228,110 @@ public:
 	CreatureAI* GetAI(Creature* creature) const override
 	{
 		return GetFirelandsAI<npc_shannox_crystal_prisonAI>(creature);
+	}
+};
+class spell_shannox_riplimb_dogged_determination : public SpellScriptLoader
+{
+public:
+	spell_shannox_riplimb_dogged_determination() : SpellScriptLoader("spell_shannox_riplimb_dogged_determination") { }
+
+	class spell_shannox_riplimb_dogged_determination_AuraScript : public AuraScript
+	{
+		PrepareAuraScript(spell_shannox_riplimb_dogged_determination_AuraScript);
+
+		void PeriodicTick(AuraEffect const* aurEff)
+		{
+			if (!GetCaster())
+				return;
+
+				if (AuraEffect* effect = GetAura()->GetEffect(EFFECT_0))
+				{
+					int32 curr_amount = effect->GetAmount();
+					if (curr_amount < 100)
+						effect->SetAmount(curr_amount + 5);
+				}
+			
+		}
+
+		void Register()
+		{
+			OnEffectPeriodic += AuraEffectPeriodicFn(spell_shannox_riplimb_dogged_determination_AuraScript::PeriodicTick, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY);
+		}
+	};
+
+	AuraScript* GetAuraScript() const
+	{
+		return new spell_shannox_riplimb_dogged_determination_AuraScript();
+	}
+};
+
+class spell_shannox_crystal_prison_trap : public SpellScriptLoader
+{
+public:
+	spell_shannox_crystal_prison_trap() : SpellScriptLoader("spell_shannox_crystal_prison_trap") { }
+
+	class spell_shannox_crystal_prison_trap_AuraScript : public AuraScript
+	{
+		PrepareAuraScript(spell_shannox_crystal_prison_trap_AuraScript);
+
+		void OnApply(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+		{
+			if (!GetCaster() || !GetTarget())
+				return;
+
+			Position pos =  GetTarget()->GetPosition();
+			if (Creature* pCrystalPrison = GetCaster()->SummonCreature(NPC_CRYSTAL_PRISON, pos))
+				pCrystalPrison->AI()->SetGUID(GetTarget()->GetGUID(), (GetTarget()->GetTypeId() == TYPEID_PLAYER) ? DATA_TRAPPED_PLAYER : DATA_TRAPPED_DOG);
+		}
+		void OnRemove(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/) 
+		{
+			if (!GetTarget())
+				return;
+
+			if (GetTarget()->GetEntry() == NPC_RIPLIMB || GetTarget()->GetEntry() == NPC_RAGEFACE)
+				GetTarget()->CastSpell(GetTarget(), SPELL_WARRY, true);
+		}
+
+		void Register()
+		{
+			OnEffectApply += AuraEffectApplyFn(spell_shannox_crystal_prison_trap_AuraScript::OnApply, EFFECT_0, SPELL_AURA_MOD_STUN, AURA_EFFECT_HANDLE_REAL);
+			OnEffectRemove += AuraEffectRemoveFn(spell_shannox_crystal_prison_trap_AuraScript::OnRemove, EFFECT_0, SPELL_AURA_MOD_STUN, AURA_EFFECT_HANDLE_REAL);
+		}
+	};
+
+	AuraScript* GetAuraScript() const
+	{
+		return new spell_shannox_crystal_prison_trap_AuraScript();
+	}
+};
+
+
+class spell_shannox_immolation_trap : public SpellScriptLoader
+{
+public:
+	spell_shannox_immolation_trap() : SpellScriptLoader("spell_shannox_immolation_trap") { }
+
+
+	class spell_shannox_immolation_trap_SpellScript : public SpellScript
+	{
+		PrepareSpellScript(spell_shannox_immolation_trap_SpellScript);
+
+
+		void HandleScript(SpellEffIndex /*effIndex*/)
+		{
+			if (GetHitUnit() && (GetHitUnit()->GetEntry() == NPC_RIPLIMB || GetHitUnit()->GetEntry() == NPC_RAGEFACE))
+				GetHitUnit()->CastSpell(GetHitUnit(), SPELL_WARRY, true);
+		}
+
+		void Register()
+		{
+			OnEffectHitTarget += SpellEffectFn(spell_shannox_immolation_trap_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+		}
+	};
+
+	SpellScript* GetSpellScript() const
+	{
+		return new spell_shannox_immolation_trap_SpellScript();
 	}
 };
 
@@ -1124,4 +1364,7 @@ void AddSC_boss_shannox()
 	new npc_shannox_crystal_prison_trap();
 	new npc_shannox_immolation_trap();
 	new npc_shannox_spear();
+	new spell_shannox_riplimb_dogged_determination();
+	new spell_shannox_crystal_prison_trap();
+	new spell_shannox_immolation_trap();
 };
