@@ -271,7 +271,7 @@ public:
                     events.ScheduleEvent(EVENT_CHAIN_LIGHTNING, 14500);
                     break;
                 case EVENT_CHAIN_LIGHTNING:
-					if(Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
+                    if(Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
                         DoCast(target, SPELL_CHAIN_LIGHTNING);
                     DoCast(me, SPELL_CHAIN_LIGHTNING);
                     events.ScheduleEvent(EVENT_CHAIN_LIGHTNING, 14500);
